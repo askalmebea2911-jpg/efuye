@@ -9,36 +9,20 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             margin: 0; overflow: hidden;
-            background: radial-gradient(ellipse at center, #1a0030 0%, #000008 100%);
+            background: black; /* ዳራው በካንቫስ ስለሚሳል */
             font-family: 'Noto Serif Ethiopic', serif;
             touch-action: none;
             position: fixed; width: 100vw; height: 100vh;
         }
 
         canvas { display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
-        #bgCanvas { z-index: 1; }
-        #threeCanvas { z-index: 3; pointer-events: none; }
-        #particleCanvas { z-index: 6; pointer-events: none; }
-
-        /* ካሜራ ኮንቴይነር */
-        #cameraWrapper {
-            position: fixed;
-            z-index: 2;
-            pointer-events: none;
-            display: none;
-            border-radius: 50%;
-        }
-
-        #cameraShape {
-            width: 100%; height: 100%;
-            clip-path: url(#heartClip);
-            -webkit-clip-path: url(#heartClip);
-        }
-
-        #cameraVideo {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
+        
+        #mainCanvas { z-index: 1; } /* ሁሉም ግራፊክስ እዚህ ነው */
+        
+        /* ካሜራውን በልብ ቅርጽ ለመቁረጥ ብቻ የሚያገለግል የተደበቀ ኤለመንት */
+        #cameraSource {
+            position: fixed; width: 1px; height: 1px;
+            opacity: 0; pointer-events: none;
         }
 
         /* ማስጀመሪያ ስክሪን */
@@ -68,7 +52,8 @@
         #loveTextContainer {
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 4; text-align: center; pointer-events: none;
+            z-index: 10; /* ከሁሉም በላይ */
+            text-align: center; pointer-events: none;
             width: 100%;
         }
 
@@ -86,31 +71,15 @@
         <button class="start-btn">ክፈቺው</button>
     </div>
 
-    <svg style="position: absolute; width: 0; height: 0;">
-        <defs>
-            <clipPath id="heartClip" clipPathUnits="objectBoundingBox">
-                <path d="M0.5,0.15 C0.5,0.15 0.35,0 0.2,0.08 C0.05,0.16 0,0.35 0,0.42 C0,0.55 0.15,0.7 0.5,0.95 C0.85,0.7 1,0.55 1,0.42 C1,0.35 0.95,0.16 0.8,0.08 C0.65,0 0.5,0.15 0.5,0.15 Z" />
-            </clipPath>
-        </defs>
-    </svg>
+    <video id="cameraSource" autoplay playsinline muted loop></video>
 
-    <canvas id="bgCanvas"></canvas>
-    
-    <div id="cameraWrapper">
-        <div id="cameraShape">
-            <video id="cameraVideo" autoplay playsinline muted loop></video>
-        </div>
-    </div>
-
-    <canvas id="threeCanvas"></canvas>
+    <canvas id="mainCanvas"></canvas>
     
     <div id="loveTextContainer">
         <div id="loveText">💫 የኔ ወርቅ ሴት 💫</div>
         <div style="color: #ffe9a0; font-family: 'Dancing Script'; font-size: 22px;">አፈቅርሻለሁ ❤️</div>
     </div>
     
-    <canvas id="particleCanvas"></canvas>
-
     <script type="importmap">
         { "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }
     </script>
@@ -121,38 +90,33 @@
         const W = () => window.innerWidth;
         const H = () => window.innerHeight;
         let cameraReady = false;
+        let mouseX = 0, mouseY = 0;
+        let pActive = false;
 
-        // --- ካሜራ ማስጀመር በፈቃድ ---
+        // --- ካሜራ ማስጀመር ---
         const startOverlay = document.getElementById('startOverlay');
         startOverlay.onclick = async () => {
             try {
-                const constraints = { 
-                    video: { 
-                        facingMode: 'user',
-                        width: { ideal: 720 },
-                        height: { ideal: 720 }
-                    } 
-                };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('cameraVideo');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', aspectRatio: 1 } });
+                const video = document.getElementById('cameraSource');
                 video.srcObject = stream;
                 
                 video.onloadedmetadata = () => {
                     video.play();
                     cameraReady = true;
-                    document.getElementById('cameraWrapper').style.display = 'block';
+                    // የካሜራ ቴክስቸር መፍጠር
+                    createCameraMesh(); 
                     startOverlay.style.opacity = '0';
                     setTimeout(() => startOverlay.style.display = 'none', 500);
                 };
-            } catch (e) { 
-                alert("ካሜራውን መክፈት አልተቻለም! እባክዎን በ HTTPS ሊንክ ይክፈቱ ወይም ለብሮውዘሩ ፈቃድ ይስጡ። ስህተት፦ " + e.name); 
-            }
+            } catch (e) { alert("ካሜራውን መክፈት አልተቻለም!"); }
         };
 
-        // --- 3D Scene ዝግጅት ---
-        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('threeCanvas'), alpha: true, antialias: true });
+        // --- Three.js setup ---
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('mainCanvas'), antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(W(), H());
+        renderer.autoClear = false; // ለተለያዩ ክፍሎች (ዳራ፣ ልብ፣ እፉዬ)
         const scene = new THREE.Scene();
         const camera3D = new THREE.PerspectiveCamera(50, W()/H(), 0.1, 1000);
         camera3D.position.z = 15;
@@ -160,56 +124,143 @@
         const heartGroup = new THREE.Group();
         scene.add(heartGroup);
 
+        // --- 1. ጋላክሲ ዳራ ---
+        const bgScene = new THREE.Scene();
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 5000;
+        const starPos = new Float32Array(starCount * 3);
+        for(let i=0; i<starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 100;
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true });
+        bgScene.add(new THREE.Points(starGeo, starMat));
+
+        // --- 2. የሚያብረቀርቅ 3D ልብ ---
         function heartEq(t) {
             return {
                 x: 16 * Math.pow(Math.sin(t), 3) * 0.35,
                 y: (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 0.35
             };
         }
-
-        // የሚያብረቀርቅ ልብ
         const geo = new THREE.BufferGeometry();
         const particleCount = 4000;
         const pos = new Float32Array(particleCount * 3);
         for(let i=0; i<particleCount; i++) {
             const pt = heartEq((i/particleCount) * Math.PI * 2);
-            pos[i*3] = pt.x + (Math.random()-0.5)*0.4;
-            pos[i*3+1] = pt.y + (Math.random()-0.5)*0.4;
-            pos[i*3+2] = (Math.random()-0.5)*0.5;
+            pos[i*3] = pt.x + (Math.random()-0.5)*0.2;
+            pos[i*3+1] = pt.y + (Math.random()-0.5)*0.2;
+            pos[i*3+2] = (Math.random()-0.5)*0.2;
         }
         geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-        const mat = new THREE.PointsMaterial({ 
-            size: 0.12, 
-            color: 0xff3366, 
-            transparent: true, 
-            opacity: 0.7, 
-            blending: THREE.AdditiveBlending 
-        });
+        const mat = new THREE.PointsMaterial({ size: 0.08, color: 0xff1440, transparent: true, opacity: 0.5 });
         heartGroup.add(new THREE.Points(geo, mat));
 
-        // --- ካሜራውን በልቡ ቦታ ማስቀመጥ ---
-        function updateCameraPos() {
-            const vector = new THREE.Vector3(0, 0, 0);
-            vector.project(camera3D);
-            const x = (vector.x * 0.5 + 0.5) * W();
-            const y = (-vector.y * 0.5 + 0.5) * H();
+        // --- 3. ካሜራ በልብ ቅርጽ (በShader ለዳፐስ) ---
+        let cameraMesh;
+        function createCameraMesh() {
+            const video = document.getElementById('cameraSource');
+            const videoTexture = new THREE.VideoTexture(video);
             
-            const wrapper = document.getElementById('cameraWrapper');
-            const size = Math.min(W(), H()) * 0.75; 
-            wrapper.style.width = size + 'px';
-            wrapper.style.height = size + 'px';
-            wrapper.style.left = (x - size/2) + 'px';
-            wrapper.style.top = (y - size/2) + 'px';
+            const heartShape = new THREE.Shape();
+            for(let i=0; i<=100; i++) {
+                const pt = heartEq((i/100) * Math.PI * 2);
+                if(i===0) heartShape.moveTo(pt.x, pt.y);
+                else heartShape.lineTo(pt.x, pt.y);
+            }
+            const heartGeo = new THREE.ShapeGeometry(heartShape);
+            
+            // የተስተካከለ Shader ለዴፕስ (Refraction)
+            const shaderMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    tVideo: { value: videoTexture },
+                    uDepth: { value: 0.2 }, // ዴፕስ (አጉሊ መነጽር ስሜት)
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tVideo;
+                    uniform float uDepth;
+                    varying vec2 vUv;
+                    void main() {
+                        // የመነጽር/አጉሊ ስሜት (Refraction)
+                        vec2 dist = vUv - 0.5;
+                        vec2 uv = 0.5 + dist * (1.0 - uDepth * length(dist));
+                        
+                        // የካሜራውን ምስል (mirror)
+                        vec4 color = texture2D(tVideo, vec2(1.0 - uv.x, uv.y));
+                        gl_FragColor = color;
+                    }
+                `,
+                transparent: true,
+            });
+            
+            cameraMesh = new THREE.Mesh(heartGeo, shaderMat);
+            cameraMesh.position.z = -0.1; // ልክ ከልቡ ቀይ ብልጭታ በስተጀርባ
+            heartGroup.add(cameraMesh);
         }
+
+        // --- 4. እፉዬ ገላዎች (ከካሜራ በላይ እንዲሆኑ) ---
+        const efuyeScene = new THREE.Scene();
+        const efuyeCount = 100;
+        const efuyes = [];
+        const efuyeGeo = new THREE.CircleGeometry(0.15, 8);
+        const efuyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+
+        for(let i=0; i<efuyeCount; i++) {
+            const mesh = new THREE.Mesh(efuyeGeo, efuyeMat);
+            mesh.position.set((Math.random()-0.5)*30, (Math.random()-0.5)*30, 5); // ከልቡ (z=0) በላይ (z=5)
+            mesh.userData.vx = (Math.random()-0.5)*0.02;
+            mesh.userData.vy = (Math.random()-0.5)*0.02;
+            efuyeScene.add(mesh);
+            efuyes.push(mesh);
+        }
+
+        // ንክኪ ክስተቶች
+        function onPointerMove(x, y) {
+            mouseX = (x / W()) * 2 - 1;
+            mouseY = -(y / H()) * 2 + 1;
+            pActive = true;
+        }
+
+        window.addEventListener('mousemove', e => onPointerMove(e.clientX, e.clientY));
+        window.addEventListener('touchmove', e => onPointerMove(e.touches[0].clientX, e.touches[0].clientY));
+        window.addEventListener('touchend', () => pActive = false);
 
         // --- Animation Loop ---
         function animate() {
             const time = Date.now() * 0.001;
-            heartGroup.rotation.y = Math.sin(time * 0.5) * 0.2;
-            heartGroup.scale.setScalar(1 + Math.sin(time * 2) * 0.05);
+            heartGroup.rotation.y = Math.sin(time * 0.5) * 0.15;
+            heartGroup.scale.setScalar(1 + Math.sin(time * 2) * 0.03);
+
+            // እፉዬ ገላዎችን ማንቀሳቀስ
+            const mousePos3D = new THREE.Vector3(mouseX * 15, mouseY * 15, 5); // አይጥ በZ=5
+            efuyes.forEach(e => {
+                e.position.x += e.userData.vx;
+                e.position.y += e.userData.vy;
+
+                // የዳርቻ ማስተካከያ
+                if(Math.abs(e.position.x) > 15) e.position.x *= -1;
+                if(Math.abs(e.position.y) > 15) e.position.y *= -1;
+
+                // ንክኪ
+                if(pActive) {
+                    const d = e.position.distanceTo(mousePos3D);
+                    if(d < 3) {
+                        e.position.lerp(mousePos3D, -0.01 / d);
+                    }
+                }
+            });
+
+            // መሳል (Render) በቅደም ተከተል
+            renderer.clear();
+            renderer.render(bgScene, camera3D);   // 1. ጋላክሲ ዳራ
+            renderer.render(scene, camera3D);     // 2. ልብ እና ካሜራ
+            renderer.render(efuyeScene, camera3D); // 3. እፉዬ ገላዎች (ከላይ)
             
-            renderer.render(scene, camera3D);
-            if(cameraReady) updateCameraPos();
             requestAnimationFrame(animate);
         }
         animate();

@@ -4,250 +4,140 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>የኔ ወርቅ ሴት</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Ethiopic:wght@400;700;900&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{
-            margin:0;overflow:hidden;background:#000;
-            font-family:'Noto Serif Ethiopic',serif;
-            touch-action:none;position:fixed;
-            width:100vw;height:100vh;
-        }
-        canvas{position:fixed;top:0;left:0;width:100%;height:100%}
+        body{background:#000;overflow:hidden;position:fixed;width:100vw;height:100vh;touch-action:none}
+        canvas{position:fixed;top:0;left:0}
         #bg{z-index:1}
-        #camCanvas{z-index:2;pointer-events:none}
-        #three{z-index:3;pointer-events:none}
-        #lens{z-index:4;pointer-events:none}
-        #fluff{z-index:6;pointer-events:none}
+        #cam{z-index:2;pointer-events:none}
+        #lens{z-index:3;pointer-events:none}
+        #fluff{z-index:4;pointer-events:none}
         #txt{
             position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-            z-index:5;text-align:center;pointer-events:none;width:100%;
-            animation:float 3s ease-in-out infinite;
+            z-index:5;text-align:center;pointer-events:none;width:100%
         }
-        @keyframes float{
-            0%,100%{transform:translate(-50%,-50%) translateY(0)}
-            50%{transform:translate(-50%,-50%) translateY(-6px)}
-        }
-        #t1{
-            font-size:clamp(20px,5vw,32px);font-weight:900;color:#fff;
-            text-shadow:0 0 30px #f06,0 0 60px #f03;
-        }
-        #t2{
-            font-family:'Dancing Script',cursive;font-size:clamp(14px,3.5vw,20px);
-            color:#fd0;text-shadow:0 0 20px #fa0;
-        }
+        #t1{font:900 clamp(22px,5vw,34px) 'Nyala',serif;color:#fff;text-shadow:0 0 30px #f06,0 0 60px #f03}
+        #t2{font:clamp(16px,4vw,22px) 'Nyala',serif;color:#fd0;text-shadow:0 0 20px #fa0}
     </style>
 </head>
 <body>
     <video id="vid" autoplay playsinline muted style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0"></video>
     <canvas id="bg"></canvas>
-    <canvas id="camCanvas"></canvas>
-    <canvas id="three"></canvas>
+    <canvas id="cam"></canvas>
     <canvas id="lens"></canvas>
     <div id="txt"><div id="t1">💫 የኔ ወርቅ ሴት 💫</div><div id="t2">አፈቅርሻለሁ ❤️</div></div>
     <canvas id="fluff"></canvas>
 
-    <script type="importmap">
-        {"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js"}}
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-
-        const isMobile=/Mobi|Android/i.test(navigator.userAgent);
+    <script>
         const W=()=>window.innerWidth;
         const H=()=>window.innerHeight;
-        let camOn=false;
-
+        const isMobile=/Mobi|Android/i.test(navigator.userAgent);
+        
         const vid=document.getElementById('vid');
         const bgC=document.getElementById('bg').getContext('2d');
-        const camC=document.getElementById('camCanvas').getContext('2d');
+        const camC=document.getElementById('cam').getContext('2d');
         const lensC=document.getElementById('lens').getContext('2d');
         const flC=document.getElementById('fluff').getContext('2d');
+        
+        let camOn=false;
 
         // ========== ካሜራ ==========
-        (async function startCam(){
+        (async()=>{
             try{
-                const stream=await navigator.mediaDevices.getUserMedia({
-                    video:{facingMode:'user',width:640,height:640}
-                });
-                vid.srcObject=stream;
+                const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:640}});
+                vid.srcObject=s;
                 vid.onloadedmetadata=()=>{vid.play();camOn=true}
             }catch(e){camOn=false}
         })();
 
-        // ========== ዳራ ==========
+        // ========== ዳራ ከዋክብት + ኔቡላ ==========
         let stars=[],nebs=[];
         class Star{
             constructor(){this.rst(true)}
-            rst(f){
-                this.x=f?Math.random()*W():(Math.random()<0.5?-10:W()+10);
-                this.y=f?Math.random()*H():Math.random()*H();
-                this.r=Math.random()*1.5+0.3;
-                this.sp=Math.random()*0.02+0.005;
-                this.ph=Math.random()*Math.PI*2;
-            }
+            rst(f){this.x=f?Math.random()*W():(Math.random()<0.5?-10:W()+10);this.y=f?Math.random()*H():Math.random()*H();this.r=Math.random()*1.5+0.3;this.sp=Math.random()*0.02+0.005;this.ph=Math.random()*Math.PI*2}
             up(){this.ph+=this.sp;this.x+=0.02;if(this.x>W()+10)this.rst(false)}
-            dr(ctx){
-                const a=(Math.sin(this.ph)+1)/2*0.6+0.4;
-                ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-                ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.fill();
-            }
+            dr(c){const a=(Math.sin(this.ph)+1)/2*0.6+0.4;c.beginPath();c.arc(this.x,this.y,this.r,0,Math.PI*2);c.fillStyle=`rgba(255,255,255,${a})`;c.fill()}
         }
         class Neb{
-            constructor(){
-                this.x=Math.random()*W();this.y=Math.random()*H();
-                this.rad=Math.random()*100+40;
-                this.h=[280,320,340,30,200][Math.floor(Math.random()*5)];
-                this.al=Math.random()*0.03+0.015;
-                this.sp=(Math.random()-0.5)*0.08;
-            }
+            constructor(){this.x=Math.random()*W();this.y=Math.random()*H();this.rad=Math.random()*100+40;this.h=[280,320,340,30,200][Math.floor(Math.random()*5)];this.al=Math.random()*0.03+0.015;this.sp=(Math.random()-0.5)*0.08}
             up(){this.x+=this.sp;if(this.x>W()+this.rad)this.x=-this.rad;if(this.x<-this.rad)this.x=W()+this.rad}
-            dr(ctx){
-                const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.rad);
-                g.addColorStop(0,`hsla(${this.h},60%,55%,${this.al*1.5})`);
-                g.addColorStop(0.5,`hsla(${this.h},45%,35%,${this.al})`);
-                g.addColorStop(1,'transparent');
-                ctx.fillStyle=g;ctx.fillRect(this.x-this.rad,this.y-this.rad,this.rad*2,this.rad*2);
-            }
+            dr(c){const g=c.createRadialGradient(this.x,this.y,0,this.x,this.y,this.rad);g.addColorStop(0,`hsla(${this.h},60%,55%,${this.al*1.5})`);g.addColorStop(0.5,`hsla(${this.h},45%,35%,${this.al})`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(this.x-this.rad,this.y-this.rad,this.rad*2,this.rad*2)}
         }
-        function initBg(){
-            stars=[];for(let i=0;i<(isMobile?80:150);i++)stars.push(new Star());
-            nebs=[];for(let i=0;i<(isMobile?2:4);i++)nebs.push(new Neb());
-        }
-        function drawBg(){
-            bgC.clearRect(0,0,W(),H());
-            const g=bgC.createRadialGradient(W()/2,H()/2,0,W()/2,H()/2,Math.max(W(),H()));
-            g.addColorStop(0,'#1a0030');g.addColorStop(0.5,'#0a0012');g.addColorStop(1,'#000005');
-            bgC.fillStyle=g;bgC.fillRect(0,0,W(),H());
-            for(let n of nebs){n.up();n.dr(bgC)}
-            for(let s of stars){s.up();s.dr(bgC)}
-        }
+        function initBg(){stars=[];for(let i=0;i<(isMobile?80:150);i++)stars.push(new Star());nebs=[];for(let i=0;i<(isMobile?2:4);i++)nebs.push(new Neb())}
+        function drawBg(){bgC.clearRect(0,0,W(),H());const g=bgC.createRadialGradient(W()/2,H()/2,0,W()/2,H()/2,Math.max(W(),H()));g.addColorStop(0,'#1a0030');g.addColorStop(0.5,'#0a0012');g.addColorStop(1,'#000005');bgC.fillStyle=g;bgC.fillRect(0,0,W(),H());for(let n of nebs){n.up();n.dr(bgC)}for(let s of stars){s.up();s.dr(bgC)}}
 
-        // ========== 3D ልብ ==========
-        const rdr=new THREE.WebGLRenderer({canvas:document.getElementById('three'),alpha:true,antialias:!isMobile});
-        rdr.setPixelRatio(Math.min(devicePixelRatio,2));rdr.setSize(W(),H());
-        const scn=new THREE.Scene();
-        const cam3=new THREE.PerspectiveCamera(50,W()/H(),0.1,1000);
-        cam3.position.z=isMobile?16:14;
-        const hg=new THREE.Group();scn.add(hg);
-
-        function heq(t){
-            return{
-                x:16*Math.pow(Math.sin(t),3)*0.35,
-                y:(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*0.35,
-                z:2.5*Math.sin(t)*Math.cos(t)*0.35
-            };
-        }
-
-        const mc=isMobile?2000:3500;
-        const mg=new THREE.BufferGeometry();
-        const mp=new Float32Array(mc*3);
-        for(let i=0;i<mc;i++){
-            const p=heq((i/mc)*Math.PI*2);
-            mp[i*3]=p.x+(Math.random()-0.5)*0.35;
-            mp[i*3+1]=p.y+(Math.random()-0.5)*0.35;
-            mp[i*3+2]=p.z+(Math.random()-0.5)*0.35;
-        }
-        mg.setAttribute('position',new THREE.BufferAttribute(mp,3));
+        // ========== ልብ ቅርጽ ሒሳብ ==========
+        function heartX(t){return 16*Math.pow(Math.sin(t),3)}
+        function heartY(t){return 13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t)}
         
-        const tx=(()=>{
-            const c=document.createElement('canvas');c.width=32;c.height=32;
-            const x=c.getContext('2d');
-            const g=x.createRadialGradient(16,16,0,16,16,16);
-            g.addColorStop(0,'rgba(255,255,255,1)');
-            g.addColorStop(0.3,'rgba(255,255,255,0.8)');
-            g.addColorStop(0.7,'rgba(255,100,150,0.2)');
-            g.addColorStop(1,'rgba(0,0,0,0)');
-            x.fillStyle=g;x.fillRect(0,0,32,32);
-            return new THREE.CanvasTexture(c);
-        })();
-
-        const mm=new THREE.PointsMaterial({
-            size:isMobile?0.18:0.14,map:tx,
-            color:0xff3366,blending:THREE.AdditiveBlending,
-            depthWrite:false,transparent:true,opacity:0.85
-        });
-        hg.add(new THREE.Points(mg,mm));
-
-        // ========== የልብ ቅርጽ ወሰኖች በስክሪን ላይ ማስላት ==========
-        function getHeartScreenBounds(){
-            // የልቡን ቅርጽ በ3D ነጥቦች ወደ ስክሪን መቀየር
-            const pts=[];
-            const steps=80;
-            for(let i=0;i<steps;i++){
-                const t=(i/steps)*Math.PI*2;
-                const p=heq(t);
-                const v=new THREE.Vector3(p.x,p.y,p.z);
-                v.applyMatrix4(hg.matrixWorld);
-                v.project(cam3);
-                pts.push({
-                    x:(v.x*0.5+0.5)*W(),
-                    y:(-v.y*0.5+0.5)*H()
-                });
-            }
+        // የልብ እንቅስቃሴ
+        let hx=0,hy=0,hs=0,hr=0;
+        
+        function calcHeart(ts){
+            const t=ts*0.001;
+            const breathe=1+Math.sin(t*1.8)*0.04;
+            const baseSize=Math.min(W(),H())*0.55*breathe;
+            const maxSize=Math.min(W(),H())*0.85;
+            hs=Math.min(baseSize,maxSize);
             
-            // ድንበር ሳጥን ፈልግ
-            let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
-            for(const p of pts){
-                if(p.x<mnX)mnX=p.x;
-                if(p.y<mnY)mnY=p.y;
-                if(p.x>mxX)mxX=p.x;
-                if(p.y>mxY)mxY=p.y;
-            }
+            const rot=Math.sin(t*0.5)*0.25;
+            hr=rot;
             
-            const bw=mxX-mnX;
-            const bh=mxY-mnY;
-            const rawSize=Math.max(bw,bh)*1.08;
-            
-            // ከስክሪን ውጪ እንዳይሆን መገደብ
-            const maxAllowed=Math.min(W(),H())*0.85;
-            const size=Math.min(rawSize,maxAllowed);
-            
-            // ማዕከልም ከስክሪን ውጪ እንዳይሆን
-            const cx=(mnX+mxX)/2;
-            const cy=(mnY+mxY)/2;
-            const half=size/2;
-            const clampedX=Math.max(half,Math.min(W()-half,cx));
-            const clampedY=Math.max(half,Math.min(H()-half,cy));
-            
-            return {x:clampedX,y:clampedY,size:size};
+            const cx=W()/2;
+            const cy=H()/2;
+            const half=hs/2;
+            hx=Math.max(half,Math.min(W()-half,cx+Math.sin(rot)*hs*0.1));
+            hy=Math.max(half,Math.min(H()-half,cy+Math.cos(rot)*hs*0.05));
+        }
+        
+        function heartPath(c,cx,cy,sz){
+            const s=sz/30;
+            c.beginPath();
+            c.moveTo(cx,cy-s*5);
+            c.bezierCurveTo(cx-s*12,cy-s*12,cx-s*18,cy+s*2,cx,cy+s*14);
+            c.bezierCurveTo(cx+s*18,cy+s*2,cx+s*12,cy-s*12,cx,cy-s*5);
+            c.closePath();
         }
 
-        // ========== ካሜራ በልብ ቅርጽ መሳል ==========
-        function drawCamInHeart(bounds){
+        // ========== ካሜራ በልብ ቅርጽ ==========
+        function drawCam(){
             camC.clearRect(0,0,W(),H());
-            if(!camOn || vid.readyState<2) return;
-            
-            const {x:cx,y:cy,size}=bounds;
-            const s=size/30;
-            
             camC.save();
-            // የልብ ቅርጽ ክሊፕ
-            camC.beginPath();
-            camC.moveTo(cx,cy-s*5);
-            camC.bezierCurveTo(cx-s*12,cy-s*12,cx-s*18,cy+s*2,cx,cy+s*14);
-            camC.bezierCurveTo(cx+s*18,cy+s*2,cx+s*12,cy-s*12,cx,cy-s*5);
-            camC.closePath();
+            heartPath(camC,hx,hy,hs);
             camC.clip();
             
-            // ካሜራ ቪዲዮ መሳል - ሙሉውን የልብ ቦታ ይሞላል
-            camC.save();
-            camC.scale(-1,1);
-            const vs=size*1.55;
-            camC.drawImage(vid,-(cx+vs/2),cy-vs/2,vs,vs);
+            if(camOn&&vid.readyState>=2){
+                camC.save();
+                camC.scale(-1,1);
+                const vs=hs*1.6;
+                camC.drawImage(vid,-(hx+vs/2),hy-vs/2,vs,vs);
+                camC.restore();
+            }else{
+                const g=camC.createRadialGradient(hx,hy-hs*0.1,hs*0.05,hx,hy,hs*0.6);
+                g.addColorStop(0,'rgba(255,20,60,0.5)');
+                g.addColorStop(0.5,'rgba(255,15,45,0.2)');
+                g.addColorStop(1,'rgba(255,10,30,0.03)');
+                camC.fillStyle=g;camC.fill();
+            }
             camC.restore();
+            
+            // የልብ ድንበር
+            camC.save();
+            heartPath(camC,hx,hy,hs);
+            camC.strokeStyle='rgba(255,70,100,0.8)';
+            camC.lineWidth=2.5;
+            camC.shadowColor='rgba(255,30,60,0.8)';
+            camC.shadowBlur=25;
+            camC.stroke();
             camC.restore();
         }
 
-        // ========== ሌንስ ውጤት ==========
-        function drawLens(bounds){
+        // ========== ሌንስ ==========
+        function drawLens(){
             lensC.clearRect(0,0,W(),H());
-            const {x:cx,y:cy,size}=bounds;
-            if(size<=0)return;
             
             // Vignette
-            const g=lensC.createRadialGradient(cx,cy,size*0.35,cx,cy,size*0.6);
+            const g=lensC.createRadialGradient(hx,hy,hs*0.4,hx,hy,hs*0.62);
             g.addColorStop(0,'rgba(0,0,0,0)');
             g.addColorStop(0.5,'rgba(0,0,0,0.06)');
             g.addColorStop(0.8,'rgba(0,0,0,0.3)');
@@ -255,16 +145,16 @@
             lensC.fillStyle=g;lensC.fillRect(0,0,W(),H());
             
             // ብርሃን ነጸብራቅ
-            const hl=lensC.createRadialGradient(cx-size*0.12,cy-size*0.18,size*0.02,cx,cy,size*0.45);
-            hl.addColorStop(0,'rgba(255,255,255,0.2)');
+            const hl=lensC.createRadialGradient(hx-hs*0.1,hy-hs*0.18,hs*0.02,hx,hy,hs*0.45);
+            hl.addColorStop(0,'rgba(255,255,255,0.25)');
             hl.addColorStop(0.3,'rgba(255,255,255,0.05)');
             hl.addColorStop(1,'rgba(0,0,0,0)');
             lensC.fillStyle=hl;lensC.fillRect(0,0,W(),H());
             
             // ጠርዝ
-            lensC.beginPath();lensC.arc(cx,cy,size*0.48,0,Math.PI*2);
-            lensC.strokeStyle='rgba(255,255,255,0.12)';lensC.lineWidth=1.5;
-            lensC.shadowColor='rgba(255,255,255,0.2)';lensC.shadowBlur=10;
+            lensC.beginPath();lensC.arc(hx,hy,hs*0.5,0,Math.PI*2);
+            lensC.strokeStyle='rgba(255,255,255,0.15)';lensC.lineWidth=1.5;
+            lensC.shadowColor='rgba(255,255,255,0.25)';lensC.shadowBlur=12;
             lensC.stroke();
         }
 
@@ -272,66 +162,30 @@
         let fluffs=[];
         class Fl{
             constructor(){this.rst(true)}
-            rst(f){
-                this.x=f?Math.random()*W():-40;
-                this.y=f?Math.random()*H():Math.random()*H();
-                this.vx=(Math.random()-0.5)*0.5;this.vy=-Math.random()*0.4;
-                this.s=Math.random()*2+1.2;this.fs=this.s*2.5;
-                this.w=Math.random()*Math.PI*2;this.ws=(Math.random()-0.5)*0.03;
-                this.o=Math.random()*0.3+0.5;this.n=12+Math.floor(Math.random()*6);
-            }
-            up(){
-                this.w+=this.ws;this.vx+=Math.sin(this.w)*0.01;this.vy+=Math.cos(this.w)*0.01;
-                this.x+=this.vx;this.y+=this.vy;this.vx*=0.998;this.vy*=0.998;
-                if(this.x<-40)this.x=W()+40;if(this.x>W()+40)this.x=-40;
-                if(this.y<-40)this.y=H()+40;if(this.y>H()+40)this.y=-40;
-            }
-            dr(ctx){
-                ctx.save();ctx.translate(this.x,this.y);ctx.globalAlpha=this.o;
-                for(let i=0;i<this.n;i++){
-                    const a=(i/this.n)*Math.PI*2+this.w*0.3;
-                    ctx.beginPath();ctx.moveTo(Math.cos(a)*this.s*0.4,Math.sin(a)*this.s*0.4);
-                    ctx.lineTo(Math.cos(a)*this.fs,Math.sin(a)*this.fs);
-                    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=0.4;ctx.stroke();
-                    ctx.beginPath();ctx.arc(Math.cos(a)*this.fs,Math.sin(a)*this.fs,0.5,0,Math.PI*2);
-                    ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fill();
-                }
-                ctx.beginPath();ctx.arc(0,0,this.s*0.45,0,Math.PI*2);
-                ctx.fillStyle='#fef9f0';ctx.fill();ctx.restore();
-            }
+            rst(f){this.x=f?Math.random()*W():-40;this.y=f?Math.random()*H():Math.random()*H();this.vx=(Math.random()-0.5)*0.5;this.vy=-Math.random()*0.4;this.s=Math.random()*2+1.2;this.fs=this.s*2.5;this.w=Math.random()*Math.PI*2;this.ws=(Math.random()-0.5)*0.03;this.o=Math.random()*0.3+0.5;this.n=12+Math.floor(Math.random()*6)}
+            up(){this.w+=this.ws;this.vx+=Math.sin(this.w)*0.01;this.vy+=Math.cos(this.w)*0.01;this.x+=this.vx;this.y+=this.vy;this.vx*=0.998;this.vy*=0.998;if(this.x<-40)this.x=W()+40;if(this.x>W()+40)this.x=-40;if(this.y<-40)this.y=H()+40;if(this.y>H()+40)this.y=-40}
+            dr(c){c.save();c.translate(this.x,this.y);c.globalAlpha=this.o;for(let i=0;i<this.n;i++){const a=(i/this.n)*Math.PI*2+this.w*0.3;c.beginPath();c.moveTo(Math.cos(a)*this.s*0.4,Math.sin(a)*this.s*0.4);c.lineTo(Math.cos(a)*this.fs,Math.sin(a)*this.fs);c.strokeStyle='rgba(255,255,255,0.5)';c.lineWidth=0.4;c.stroke();c.beginPath();c.arc(Math.cos(a)*this.fs,Math.sin(a)*this.fs,0.5,0,Math.PI*2);c.fillStyle='rgba(255,255,255,0.7)';c.fill()}c.beginPath();c.arc(0,0,this.s*0.45,0,Math.PI*2);c.fillStyle='#fef9f0';c.fill();c.restore()}
         }
         function initFl(){fluffs=[];for(let i=0;i<(isMobile?30:45);i++)fluffs.push(new Fl())}
+        function drawFl(){flC.clearRect(0,0,W(),H());for(let f of fluffs){f.up();f.dr(flC)}}
 
         // ========== ሪሳይዝ ==========
         function resize(){
-            ['bg','camCanvas','three','lens','fluff'].forEach(id=>{
+            ['bg','cam','lens','fluff'].forEach(id=>{
                 const c=document.getElementById(id);
                 c.width=W();c.height=H();
             });
-            rdr.setSize(W(),H());cam3.aspect=W()/H();cam3.updateProjectionMatrix();
             initBg();initFl();
         }
         window.addEventListener('resize',resize);
 
         // ========== አኒሜሽን ==========
         function anim(ts){
-            const t=ts*0.001;
-            hg.rotation.y=Math.sin(t*0.5)*0.25;
-            hg.rotation.x=Math.cos(t*0.6)*0.12;
-            hg.rotation.z=Math.sin(t*0.4)*0.15;
-            hg.scale.setScalar(1+Math.sin(t*1.8)*0.035);
-            hg.updateMatrixWorld();
-
+            calcHeart(ts);
             drawBg();
-            rdr.render(scn,cam3);
-            
-            const bounds=getHeartScreenBounds();
-            drawCamInHeart(bounds);
-            drawLens(bounds);
-            
-            flC.clearRect(0,0,W(),H());
-            for(let f of fluffs){f.up();f.dr(flC)}
-
+            drawCam();
+            drawLens();
+            drawFl();
             requestAnimationFrame(anim);
         }
 

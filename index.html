@@ -42,7 +42,6 @@
         const flC=document.getElementById('fluff').getContext('2d');
         let camOn=false;
 
-        // ===== ካሜራ =====
         (async()=>{
             try{
                 const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:640}});
@@ -51,7 +50,7 @@
         })();
 
         // ===== ጋላክሲ =====
-        let stars=[],nebs=[],shootingStars=[];
+        let stars=[],nebs=[];
         class Star{
             constructor(){this.rst(true)}
             rst(f){this.x=f?Math.random()*W():(Math.random()<0.5?-10:W()+10);this.y=f?Math.random()*H():Math.random()*H();this.r=Math.random()*2+0.5;this.sp=Math.random()*0.015+0.003;this.ph=Math.random()*Math.PI*2;this.hue=Math.random()<0.3?Math.random()*40+20:Math.random()*60+200}
@@ -63,58 +62,92 @@
             up(){this.x+=this.sp;if(this.x>W()+this.rad)this.x=-this.rad;if(this.x<-this.rad)this.x=W()+this.rad;for(let p of this.parts)p.ph+=p.sp}
             dr(c){const g=c.createRadialGradient(this.x,this.y,0,this.x,this.y,this.rad);g.addColorStop(0,`hsla(${this.hue},70%,65%,${this.al*2})`);g.addColorStop(0.3,`hsla(${this.hue},60%,50%,${this.al*1.2})`);g.addColorStop(0.6,`hsla(${this.hue},45%,35%,${this.al*0.4})`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(this.x-this.rad,this.y-this.rad,this.rad*2,this.rad*2);for(let p of this.parts){const a=(Math.sin(p.ph)+1)/2*0.5+0.5;c.beginPath();c.arc(p.x,p.y,p.r,0,Math.PI*2);c.fillStyle=`hsla(${this.hue},80%,75%,${a*this.al*3})`;c.fill()}}
         }
-        class ShootingStar{
-            constructor(){this.rst()}
-            rst(){this.x=Math.random()*W();this.y=Math.random()*H()*0.4;this.len=Math.random()*100+50;this.speed=Math.random()*8+4;this.angle=Math.PI/4+(Math.random()-0.5)*0.5;this.life=1}
-            up(){this.x+=Math.cos(this.angle)*this.speed;this.y+=Math.sin(this.angle)*this.speed;this.life-=0.005;if(this.life<=0||this.x>W()+100||this.y>H()+100)this.rst()}
-            dr(c){if(this.life<=0)return;const ex=this.x-Math.cos(this.angle)*this.len;const ey=this.y-Math.sin(this.angle)*this.len;const g=c.createLinearGradient(this.x,this.y,ex,ey);g.addColorStop(0,`rgba(255,255,255,${this.life})`);g.addColorStop(1,'rgba(255,255,255,0)');c.beginPath();c.moveTo(this.x,this.y);c.lineTo(ex,ey);c.strokeStyle=g;c.lineWidth=2;c.stroke()}
-        }
-        function initBg(){stars=[];for(let i=0;i<(isMobile?130:220);i++)stars.push(new Star());nebs=[];for(let i=0;i<(isMobile?3:6);i++)nebs.push(new Nebula());shootingStars=[];for(let i=0;i<3;i++)shootingStars.push(new ShootingStar())}
-        function drawBg(){bgC.clearRect(0,0,W(),H());const g=bgC.createRadialGradient(W()/2,H()/2,0,W()/2,H()/2,Math.max(W(),H())*0.8);g.addColorStop(0,'rgba(30,5,60,0.45)');g.addColorStop(0.3,'rgba(15,2,30,0.55)');g.addColorStop(0.6,'rgba(5,0,15,0.8)');g.addColorStop(1,'#000003');bgC.fillStyle=g;bgC.fillRect(0,0,W(),H());for(let n of nebs){n.up();n.dr(bgC)}for(let s of stars){s.up();s.dr(bgC)}for(let ss of shootingStars){ss.up();ss.dr(bgC)}}
+        function initBg(){stars=[];for(let i=0;i<(isMobile?130:220);i++)stars.push(new Star());nebs=[];for(let i=0;i<(isMobile?3:6);i++)nebs.push(new Nebula())}
+        function drawBg(){bgC.clearRect(0,0,W(),H());const g=bgC.createRadialGradient(W()/2,H()/2,0,W()/2,H()/2,Math.max(W(),H())*0.8);g.addColorStop(0,'rgba(30,5,60,0.45)');g.addColorStop(0.3,'rgba(15,2,30,0.55)');g.addColorStop(0.6,'rgba(5,0,15,0.8)');g.addColorStop(1,'#000003');bgC.fillStyle=g;bgC.fillRect(0,0,W(),H());for(let n of nebs){n.up();n.dr(bgC)}for(let s of stars){s.up();s.dr(bgC)}}
 
-        // ===== 3D ልብ =====
+        // ===== 3D ልብ በመስመሮች =====
         const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('three'),alpha:true,antialias:true});
         renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(W(),H());
         const scene=new THREE.Scene();
-        const cam3D=new THREE.PerspectiveCamera(50,W()/H(),0.1,1000);cam3D.position.z=isMobile?15:13;
+        const cam3D=new THREE.PerspectiveCamera(50,W()/H(),0.1,1000);cam3D.position.z=isMobile?14:12;
         const heartGroup=new THREE.Group();scene.add(heartGroup);
 
-        // ወፍር ያለ የ3D ልብ ቅርጽ (z ጥልቀት ጨምሯል)
         function heq(t){
             return{
                 x:16*Math.pow(Math.sin(t),3)*0.35,
                 y:(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*0.35,
-                z:4*Math.sin(t)*Math.cos(t)*0.35  // ቀድሞ 2.5 ነበር → አሁን 4 (ወፍር)
+                z:3*Math.sin(t)*Math.cos(t)*0.35
             };
         }
 
-        const pc=isMobile?3000:5000;
-        const pGeo=new THREE.BufferGeometry();const pPos=new Float32Array(pc*3);const pCol=new Float32Array(pc*3);
-        for(let i=0;i<pc;i++){const t=(i/pc)*Math.PI*2;const pt=heq(t);pPos[i*3]=pt.x+(Math.random()-0.5)*0.35;pPos[i*3+1]=pt.y+(Math.random()-0.5)*0.35;pPos[i*3+2]=pt.z+(Math.random()-0.5)*0.5;const c=new THREE.Color().setHSL(0.95+Math.random()*0.08,1,0.4+Math.random()*0.5);pCol[i*3]=c.r;pCol[i*3+1]=c.g;pCol[i*3+2]=c.b}
-        pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+        // ዋና የልብ መስመሮች (blinds/rows)
+        const totalLines=100;
+        const ptsPerLine=200;
+        
+        for(let line=0;line<totalLines;line++){
+            const offset=(line/totalLines-0.5)*2.5;
+            const lineGeo=new THREE.BufferGeometry();
+            const verts=[];
+            
+            for(let i=0;i<ptsPerLine;i++){
+                const t=(i/(ptsPerLine-1))*Math.PI*2;
+                const pt=heq(t);
+                verts.push(pt.x+offset*0.08,pt.y,pt.z+offset*0.15);
+            }
+            
+            lineGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+            const hue=0.94+Math.random()*0.1;
+            const alpha=0.3+Math.random()*0.5;
+            const lineMat=new THREE.LineBasicMaterial({
+                color:new THREE.Color().setHSL(hue,1,0.5+Math.random()*0.4),
+                transparent:true,
+                opacity:alpha,
+                blending:THREE.AdditiveBlending,
+                depthWrite:false
+            });
+            heartGroup.add(new THREE.Line(lineGeo,lineMat));
+        }
 
-        const tCanvas=document.createElement('canvas');tCanvas.width=32;tCanvas.height=32;const tCtx=tCanvas.getContext('2d');
-        const tGrad=tCtx.createRadialGradient(16,16,0,16,16,16);tGrad.addColorStop(0,'rgba(255,255,255,1)');tGrad.addColorStop(0.15,'rgba(255,255,255,0.95)');tGrad.addColorStop(0.4,'rgba(255,180,200,0.6)');tGrad.addColorStop(0.7,'rgba(255,50,80,0.2)');tGrad.addColorStop(1,'rgba(0,0,0,0)');tCtx.fillStyle=tGrad;tCtx.fillRect(0,0,32,32);
-        const tex=new THREE.CanvasTexture(tCanvas);
+        // የላይኛው አንጸባራቂ መስመር (outline)
+        const outlineGeo=new THREE.BufferGeometry();
+        const outlineVerts=[];
+        const outlinePts=300;
+        for(let i=0;i<outlinePts;i++){
+            const t=(i/(outlinePts-1))*Math.PI*2;
+            const pt=heq(t);
+            outlineVerts.push(pt.x,pt.y,pt.z);
+        }
+        outlineGeo.setAttribute('position',new THREE.Float32BufferAttribute(outlineVerts,3));
+        const outlineMat=new THREE.LineBasicMaterial({
+            color:0xff3366,
+            transparent:true,
+            opacity:0.9,
+            blending:THREE.AdditiveBlending,
+            depthWrite:false,
+            linewidth:2
+        });
+        heartGroup.add(new THREE.Line(outlineGeo,outlineMat));
 
-        const pMat=new THREE.PointsMaterial({size:isMobile?0.18:0.15,map:tex,vertexColors:true,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0.9});
-        heartGroup.add(new THREE.Points(pGeo,pMat));
+        // የውጭ አንጸባራቂ መስመር
+        const outerGeo=new THREE.BufferGeometry();
+        const outerVerts=[];
+        for(let i=0;i<outlinePts;i++){
+            const t=(i/(outlinePts-1))*Math.PI*2;
+            const pt=heq(t);
+            const sf=1.2;
+            outerVerts.push(pt.x*sf,pt.y*sf,pt.z*sf);
+        }
+        outerGeo.setAttribute('position',new THREE.Float32BufferAttribute(outerVerts,3));
+        const outerMat=new THREE.LineBasicMaterial({
+            color:0xff5580,
+            transparent:true,
+            opacity:0.4,
+            blending:THREE.AdditiveBlending,
+            depthWrite:false
+        });
+        heartGroup.add(new THREE.Line(outerGeo,outerMat));
 
-        // ጨረሮች
-        const lc=200;const lGeo=new THREE.BufferGeometry();const lv=[];
-        for(let i=0;i<lc;i++){const t=(i/lc)*Math.PI*2;const a=heq(t);const b=heq(t+0.02);lv.push(a.x,a.y,a.z,b.x,b.y,b.z)}
-        lGeo.setAttribute('position',new THREE.Float32BufferAttribute(lv,3));
-        const lMat=new THREE.LineBasicMaterial({color:0xff5580,transparent:true,opacity:0.7,blending:THREE.AdditiveBlending});
-        heartGroup.add(new THREE.LineSegments(lGeo,lMat));
-
-        // የውጭ ጨረሮች
-        const olc=200;const olGeo=new THREE.BufferGeometry();const olv=[];
-        for(let i=0;i<olc;i++){const t=(i/olc)*Math.PI*2;const a=heq(t);const sf=1.3;olv.push(a.x*sf,a.y*sf,a.z*sf,a.x*(sf+0.1),a.y*(sf+0.1),a.z*(sf+0.1))}
-        olGeo.setAttribute('position',new THREE.Float32BufferAttribute(olv,3));
-        const olMat=new THREE.LineBasicMaterial({color:0xff3366,transparent:true,opacity:0.3,blending:THREE.AdditiveBlending});
-        heartGroup.add(new THREE.LineSegments(olGeo,olMat));
-
-        // ===== 3D→2D ቀይር (ለካሜራ ትክክለኛ መጠን) =====
+        // ===== 3D→2D =====
         function getHeart2D(){
             const pts=[];
             for(let i=0;i<120;i++){
@@ -130,19 +163,17 @@
                 if(p.x<mnX)mnX=p.x;if(p.y<mnY)mnY=p.y;
                 if(p.x>mxX)mxX=p.x;if(p.y>mxY)mxY=p.y;
             }
-            const rawW=mxX-mnX,rawH=mxY-mnY;
-            const rawSize=Math.max(rawW,rawH)*1.05;
-            // ከስክሪን ውጪ እንዳይሆን
-            const size=Math.min(rawSize,Math.min(W(),H())*0.88);
+            const rawSize=Math.max(mxX-mnX,mxY-mnY)*1.08;
+            const size=Math.min(rawSize,Math.min(W(),H())*0.85);
             const cx=(mnX+mxX)/2,cy=(mnY+mxY)/2,half=size/2;
             return{
-                x:Math.max(half+5,Math.min(W()-half-5,cx)),
-                y:Math.max(half+5,Math.min(H()-half-5,cy)),
+                x:Math.max(half+8,Math.min(W()-half-8,cx)),
+                y:Math.max(half+8,Math.min(H()-half-8,cy)),
                 size
             };
         }
 
-        // ===== ካሜራ በልብ ውስጥ (ልክ እንደ 3D ልቡ መጠን) =====
+        // ===== ካሜራ =====
         function drawCam(pos){
             camC.clearRect(0,0,W(),H());
             const{x:cx,y:cy,size}=pos;
@@ -156,12 +187,12 @@
             camC.clip();
             if(camOn&&vid.readyState>=2){
                 camC.save();camC.scale(-1,1);
-                const vs=size*1.45;
+                const vs=size*1.5;
                 camC.drawImage(vid,-(cx+vs/2),cy-vs/2,vs,vs);
                 camC.restore();
             }else{
                 const g=camC.createRadialGradient(cx,cy-size*0.05,size*0.05,cx,cy,size*0.6);
-                g.addColorStop(0,'rgba(255,20,60,0.45)');g.addColorStop(1,'rgba(0,0,0,0)');
+                g.addColorStop(0,'rgba(255,20,60,0.5)');g.addColorStop(1,'rgba(0,0,0,0)');
                 camC.fillStyle=g;camC.fill();
             }
             camC.restore();
@@ -186,9 +217,9 @@
         let t=0;
         function animate(ts){
             t=ts*0.001;
-            heartGroup.rotation.y=Math.sin(t*0.5)*0.45;
-            heartGroup.rotation.x=Math.cos(t*0.6)*0.22;
-            heartGroup.rotation.z=Math.sin(t*0.4)*0.28;
+            heartGroup.rotation.y=Math.sin(t*0.5)*0.5;
+            heartGroup.rotation.x=Math.cos(t*0.6)*0.25;
+            heartGroup.rotation.z=Math.sin(t*0.4)*0.3;
             heartGroup.scale.setScalar(1+Math.sin(t*1.8)*0.04);
             heartGroup.updateMatrixWorld();
             drawBg();

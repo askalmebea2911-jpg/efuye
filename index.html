@@ -3,411 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>የኔ ወርቅ ሴት</title>
+    <title>የኔ ወርቅ ሴት - ጥምር ጥበብ</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{background:#000;overflow:hidden;position:fixed;width:100vw;height:100vh;touch-action:none}
+        body{background:#000;overflow:hidden;position:fixed;width:100vw;height:100vh;touch-action:none;font-family: 'Nyala', serif;}
         canvas{position:fixed;top:0;left:0}
         #bg{z-index:1}
-        #cam{z-index:2;pointer-events:none}
-        #lens{z-index:3;pointer-events:none}
-        #fluff{z-index:4;pointer-events:none}
+        #cam{z-index:2}
         #txt{
-            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-            z-index:5;text-align:center;pointer-events:none;width:100%
+            position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);
+            z-index:5;text-align:center;pointer-events:none;width:100%;
         }
-        #t1{font:900 clamp(22px,5vw,34px) 'Nyala',serif;color:#fff;text-shadow:0 0 30px #f06,0 0 60px #f03}
-        #t2{font:clamp(16px,4vw,22px) 'Nyala',serif;color:#fd0;text-shadow:0 0 20px #fa0}
+        #t1{font:900 clamp(24px,6vw,40px) 'Nyala';color:#fff;text-shadow:0 0 20px #ff0066, 0 0 40px #ff0033; letter-spacing: 2px;}
+        #t2{font:bold clamp(18px,4.5vw,26px) 'Nyala';color:#ffd700;text-shadow:0 0 15px #ffaa00; margin-top: 10px;}
     </style>
 </head>
 <body>
-    <video id="vid" autoplay playsinline muted style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0"></video>
+    <video id="vid" autoplay playsinline muted style="display:none"></video>
     <canvas id="bg"></canvas>
     <canvas id="cam"></canvas>
-    <canvas id="lens"></canvas>
-    <div id="txt"><div id="t1">💫 የኔ ወርቅ ሴት 💫</div><div id="t2">አፈቅርሻለሁ ❤️</div></div>
-    <canvas id="fluff"></canvas>
+    
+    <div id="txt">
+        <div id="t1">💫 የኔ ወርቅ ሴት 💫</div>
+        <div id="t2">አፈቅርሻለሁ ❤️</div>
+    </div>
 
     <script>
-        const W=()=>window.innerWidth;
-        const H=()=>window.innerHeight;
-        const isMobile=/Mobi|Android/i.test(navigator.userAgent);
-        
-        const vid=document.getElementById('vid');
-        const bgC=document.getElementById('bg').getContext('2d');
-        const camC=document.getElementById('cam').getContext('2d');
-        const lensC=document.getElementById('lens').getContext('2d');
-        const flC=document.getElementById('fluff').getContext('2d');
-        
-        let camOn=false;
-        let globalTime=0;
+        const canvas = document.getElementById('cam');
+        const ctx = canvas.getContext('2d');
+        const bgCanvas = document.getElementById('bg');
+        const bgCtx = bgCanvas.getContext('2d');
+        const vid = document.getElementById('vid');
 
-        // ========== ካሜራ ==========
-        (async()=>{
-            try{
-                const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:640}});
-                vid.srcObject=s;
-                vid.onloadedmetadata=()=>{vid.play();camOn=true}
-            }catch(e){camOn=false}
-        })();
+        let w, h, camOn = false;
+        let particles = [];
 
-        // ========== ጋላክሲ ዳራ ==========
-        let stars=[],nebs=[],shootingStars=[];
-        
-        class Star{
-            constructor(){this.rst(true)}
-            rst(f){
-                this.x=f?Math.random()*W():(Math.random()<0.5?-10:W()+10);
-                this.y=f?Math.random()*H():Math.random()*H();
-                this.r=Math.random()*2+0.5;
-                this.sp=Math.random()*0.02+0.005;
-                this.ph=Math.random()*Math.PI*2;
-                this.hue=Math.random()<0.3?Math.random()*40+20:Math.random()*60+200;
-            }
-            up(){
-                this.ph+=this.sp;
-                this.x+=0.03;
-                if(this.x>W()+10)this.rst(false);
-            }
-            dr(c){
-                const a=(Math.sin(this.ph)+1)/2*0.7+0.3;
-                c.beginPath();
-                c.arc(this.x,this.y,this.r,0,Math.PI*2);
-                c.fillStyle=`hsla(${this.hue},80%,75%,${a})`;
-                c.fill();
-                // አብረቅራቂ ክብ
-                if(this.r>1.2&&a>0.8){
-                    c.beginPath();
-                    c.arc(this.x,this.y,this.r*4,0,Math.PI*2);
-                    c.fillStyle=`hsla(${this.hue},80%,75%,${a*0.1})`;
-                    c.fill();
-                }
-            }
+        // ካሜራን ማስጀመር
+        async function initCam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                vid.srcObject = stream;
+                vid.onloadedmetadata = () => { vid.play(); camOn = true; };
+            } catch (e) { console.log("Camera access denied"); }
         }
-        
-        class Nebula{
-            constructor(){
-                this.x=Math.random()*W();
-                this.y=Math.random()*H();
-                this.rad=Math.random()*150+80;
-                this.hue=[280,320,340,30,200,250][Math.floor(Math.random()*6)];
-                this.al=Math.random()*0.05+0.03;
-                this.sp=(Math.random()-0.5)*0.12;
-                this.particles=[];
-                // ኔቡላ ውስጥ ያሉ ብራንች ቅንጣቶች
-                for(let i=0;i<40;i++){
-                    const a=Math.random()*Math.PI*2;
-                    const d=Math.random()*this.rad;
-                    this.particles.push({
-                        x:this.x+Math.cos(a)*d,
-                        y:this.y+Math.sin(a)*d*0.6,
-                        r:Math.random()*2+0.5,
-                        ph:Math.random()*Math.PI*2,
-                        sp:Math.random()*0.03+0.01
-                    });
-                }
-            }
-            up(){
-                this.x+=this.sp;
-                if(this.x>W()+this.rad)this.x=-this.rad;
-                if(this.x<-this.rad)this.x=W()+this.rad;
-                for(let p of this.particles)p.ph+=p.sp;
-            }
-            dr(c){
-                // ዋና ኔቡላ
-                const g=c.createRadialGradient(this.x,this.y,0,this.x,this.y,this.rad);
-                g.addColorStop(0,`hsla(${this.hue},70%,60%,${this.al*2})`);
-                g.addColorStop(0.4,`hsla(${this.hue},55%,45%,${this.al})`);
-                g.addColorStop(0.7,`hsla(${this.hue},40%,30%,${this.al*0.4})`);
-                g.addColorStop(1,'transparent');
-                c.fillStyle=g;
-                c.fillRect(this.x-this.rad,this.y-this.rad,this.rad*2,this.rad*2);
-                
-                // ብራንች ቅንጣቶች
-                for(let p of this.particles){
-                    const a=(Math.sin(p.ph)+1)/2*0.6+0.4;
-                    c.beginPath();
-                    c.arc(p.x,p.y,p.r,0,Math.PI*2);
-                    c.fillStyle=`hsla(${this.hue},80%,70%,${a*this.al*3})`;
-                    c.fill();
-                }
-            }
+
+        function resize() {
+            w = canvas.width = bgCanvas.width = window.innerWidth;
+            h = canvas.height = bgCanvas.height = window.innerHeight;
+            initParticles();
         }
-        
-        class ShootingStar{
-            constructor(){this.rst()}
-            rst(){
-                this.x=Math.random()*W();
-                this.y=Math.random()*H()*0.4;
-                this.len=Math.random()*100+50;
-                this.speed=Math.random()*9+5;
-                this.angle=Math.PI/4+(Math.random()-0.5)*0.5;
-                this.life=1;
-            }
-            up(){
-                this.x+=Math.cos(this.angle)*this.speed;
-                this.y+=Math.sin(this.angle)*this.speed;
-                this.life-=0.006;
-                if(this.life<=0||this.x>W()+100||this.y>H()+100)this.rst();
-            }
-            dr(c){
-                if(this.life<=0)return;
-                const ex=this.x-Math.cos(this.angle)*this.len;
-                const ey=this.y-Math.sin(this.angle)*this.len;
-                const g=c.createLinearGradient(this.x,this.y,ex,ey);
-                g.addColorStop(0,`rgba(255,255,255,${this.life})`);
-                g.addColorStop(0.5,`rgba(255,255,200,${this.life*0.5})`);
-                g.addColorStop(1,'rgba(255,255,255,0)');
-                c.beginPath();
-                c.moveTo(this.x,this.y);
-                c.lineTo(ex,ey);
-                c.strokeStyle=g;
-                c.lineWidth=2;
-                c.stroke();
+
+        // በምስሉ ላይ የሚታየው ዓይነት ቅንጣጣቶች (Particles)
+        function initParticles() {
+            particles = [];
+            for(let i=0; i<150; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    size: Math.random() * 2 + 0.5,
+                    speedX: (Math.random() - 0.5) * 0.5,
+                    speedY: (Math.random() - 0.5) * 0.5,
+                    life: Math.random()
+                });
             }
         }
 
-        function initBg(){
-            stars=[];
-            for(let i=0;i<(isMobile?120:200);i++)stars.push(new Star());
-            nebs=[];
-            for(let i=0;i<(isMobile?3:6);i++)nebs.push(new Nebula());
-            shootingStars=[];
-            for(let i=0;i<3;i++)shootingStars.push(new ShootingStar());
-        }
-        
-        function drawBg(){
-            bgC.clearRect(0,0,W(),H());
-            // ዳራ ፋውንዴሽን
-            const g=bgC.createRadialGradient(W()/2,H()/2,0,W()/2,H()/2,Math.max(W(),H())*0.8);
-            g.addColorStop(0,'rgba(30,5,60,0.4)');
-            g.addColorStop(0.3,'rgba(15,2,30,0.5)');
-            g.addColorStop(0.6,'rgba(5,0,15,0.8)');
-            g.addColorStop(1,'#000005');
-            bgC.fillStyle=g;
-            bgC.fillRect(0,0,W(),H());
-            
-            for(let n of nebs){n.up();n.dr(bgC)}
-            for(let s of stars){s.up();s.dr(bgC)}
-            for(let ss of shootingStars){ss.up();ss.dr(bgC)}
-        }
-
-        // ========== ልብ ቅርጽ ==========
-        function heartPath(c,cx,cy,sz){
-            const s=sz/30;
+        // የልብ ቅርጽ ቀመር (Heart Path)
+        function drawHeartPath(c, x, y, size) {
             c.beginPath();
-            c.moveTo(cx,cy-s*5);
-            c.bezierCurveTo(cx-s*12,cy-s*12,cx-s*18,cy+s*2,cx,cy+s*14);
-            c.bezierCurveTo(cx+s*18,cy+s*2,cx+s*12,cy-s*12,cx,cy-s*5);
+            for (let t = 0; t <= Math.PI * 2; t += 0.01) {
+                const r = size / 16;
+                const hx = 16 * Math.pow(Math.sin(t), 3);
+                const hy = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                if (t === 0) c.moveTo(x + hx * r, y - hy * r);
+                else c.lineTo(x + hx * r, y - hy * r);
+            }
             c.closePath();
         }
-        
-        // የልብ ቅርጽ ቅንጣቶች (መስመሮች)
-        function drawHeartParticles(c,cx,cy,sz,time){
-            const s=sz/30;
-            // የልቡን መስመር በብዙ ነጥቦች መሳል
-            const steps=200;
-            for(let i=0;i<steps;i++){
-                const t=(i/steps)*Math.PI*2;
-                const hx=16*Math.pow(Math.sin(t),3);
-                const hy=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
-                const px=cx+hx*s*0.7;
-                const py=cy-hy*s*0.7;
-                
-                // ብልጭታ ውጤት
-                const sparkle=(Math.sin(time*3+i*0.5)+1)/2;
-                const alpha=0.3+sparkle*0.7;
-                const size=1+sparkle*2;
-                
-                c.beginPath();
-                c.arc(px,py,size,0,Math.PI*2);
-                c.fillStyle=`rgba(255,${100+sparkle*155},${150+sparkle*105},${alpha})`;
-                c.fill();
-                
-                // ትንሽ ግሎው
-                if(sparkle>0.7){
-                    c.beginPath();
-                    c.arc(px,py,size*3,0,Math.PI*2);
-                    c.fillStyle=`rgba(255,80,120,${alpha*0.15})`;
-                    c.fill();
-                }
-            }
-        }
 
-        let hx=0,hy=0,hs=0;
-        
-        function calcHeart(ts){
-            const t=ts*0.001;
-            const breathe=1+Math.sin(t*1.8)*0.05;
-            const baseSize=Math.min(W(),H())*0.75*breathe;
-            const maxSize=Math.min(W(),H())*0.9;
-            hs=Math.min(baseSize,maxSize);
+        function animate(time) {
+            // ዳራውን መሳል (ከዋክብት እና ጭጋግ)
+            bgCtx.fillStyle = 'rgba(0, 0, 10, 0.2)';
+            bgCtx.fillRect(0, 0, w, h);
             
-            const cx=W()/2;
-            const cy=H()/2;
-            const half=hs/2;
-            hx=Math.max(half,Math.min(W()-half,cx));
-            hy=Math.max(half,Math.min(H()-half,cy));
-        }
+            // የልብ ትርታ (Breathe effect)
+            const pulse = 1 + Math.sin(time * 0.003) * 0.05;
+            const heartSize = Math.min(w, h) * 0.7 * pulse;
+            const cx = w / 2;
+            const cy = h / 2;
 
-        function drawCam(ts){
-            camC.clearRect(0,0,W(),H());
-            
-            // መጀመሪያ የልቡን መስመሮች መሳል (ቅንጣቶች)
-            camC.save();
-            drawHeartParticles(camC,hx,hy,hs,ts);
-            camC.restore();
-            
-            // ከዚያ ካሜራውን በልቡ ውስጥ ክሊፕ ማድረግ
-            camC.save();
-            heartPath(camC,hx,hy,hs);
-            camC.clip();
-            
-            if(camOn&&vid.readyState>=2){
-                camC.save();
-                camC.scale(-1,1);
-                const vs=hs*1.5;
-                camC.drawImage(vid,-(hx+vs/2),hy-vs/2,vs,vs);
-                camC.restore();
-            }else{
-                const g=camC.createRadialGradient(hx,hy-hs*0.1,hs*0.05,hx,hy,hs*0.6);
-                g.addColorStop(0,'rgba(255,20,60,0.45)');
-                g.addColorStop(0.5,'rgba(255,15,45,0.18)');
-                g.addColorStop(1,'rgba(255,10,30,0.03)');
-                camC.fillStyle=g;camC.fill();
-            }
-            camC.restore();
-            
-            // የልብ ድንበር
-            camC.save();
-            heartPath(camC,hx,hy,hs);
-            camC.strokeStyle='rgba(255,80,120,0.7)';
-            camC.lineWidth=2;
-            camC.shadowColor='rgba(255,40,70,0.7)';
-            camC.shadowBlur=20;
-            camC.stroke();
-            camC.restore();
-        }
+            ctx.clearRect(0, 0, w, h);
 
-        function drawLens(){
-            lensC.clearRect(0,0,W(),H());
-            
-            // Vignette
-            const g=lensC.createRadialGradient(hx,hy,hs*0.4,hx,hy,hs*0.62);
-            g.addColorStop(0,'rgba(0,0,0,0)');
-            g.addColorStop(0.5,'rgba(0,0,0,0.05)');
-            g.addColorStop(0.8,'rgba(0,0,0,0.25)');
-            g.addColorStop(1,'rgba(0,0,0,0.55)');
-            lensC.fillStyle=g;lensC.fillRect(0,0,W(),H());
-            
-            // ብርሃን ነጸብራቅ
-            const hl=lensC.createRadialGradient(hx-hs*0.1,hy-hs*0.18,hs*0.02,hx,hy,hs*0.45);
-            hl.addColorStop(0,'rgba(255,255,255,0.22)');
-            hl.addColorStop(0.3,'rgba(255,255,255,0.04)');
-            hl.addColorStop(1,'rgba(0,0,0,0)');
-            lensC.fillStyle=hl;lensC.fillRect(0,0,W(),H());
-        }
+            // 1. ካሜራውን በልብ ውስጥ መሳል
+            ctx.save();
+            drawHeartPath(ctx, cx, cy, heartSize);
+            ctx.clip();
+            if (camOn) {
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1); // Mirror effect
+                const aspect = vid.videoWidth / vid.videoHeight;
+                let drawW = heartSize * 1.5;
+                let drawH = drawW / aspect;
+                ctx.drawImage(vid, (w - cx) - drawW/2, cy - drawH/2, drawW, drawH);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = '#1a000d';
+                ctx.fill();
+            }
+            ctx.restore();
 
-        // ========== እፉዬ ገላ ==========
-        let fluffs=[];
-        class Fl{
-            constructor(){this.rst(true)}
-            rst(f){
-                this.x=f?Math.random()*W():-50;
-                this.y=f?Math.random()*H():Math.random()*H();
-                this.vx=(Math.random()-0.5)*0.6;
-                this.vy=-Math.random()*0.5-0.15;
-                this.s=Math.random()*3+2;            // ትልቅ መጠን
-                this.fs=this.s*3;
-                this.w=Math.random()*Math.PI*2;
-                this.ws=(Math.random()-0.5)*0.035;
-                this.o=Math.random()*0.35+0.55;
-                this.n=14+Math.floor(Math.random()*8);
-            }
-            up(){
-                this.w+=this.ws;
-                this.vx+=Math.sin(this.w)*0.015;
-                this.vy+=Math.cos(this.w)*0.015;
-                this.x+=this.vx;
-                this.y+=this.vy;
-                this.vx*=0.998;this.vy*=0.998;
-                if(this.x<-60)this.x=W()+60;
-                if(this.x>W()+60)this.x=-60;
-                if(this.y<-60)this.y=H()+60;
-                if(this.y>H()+60)this.y=-60;
-            }
-            dr(c){
-                c.save();
-                c.translate(this.x,this.y);
-                c.globalAlpha=this.o;
-                
-                // ላባዎች
-                for(let i=0;i<this.n;i++){
-                    const a=(i/this.n)*Math.PI*2+this.w*0.35;
-                    const sx=Math.cos(a)*this.s*0.45;
-                    const sy=Math.sin(a)*this.s*0.45;
-                    const ex=Math.cos(a)*this.fs;
-                    const ey=Math.sin(a)*this.fs;
-                    
-                    c.beginPath();
-                    c.moveTo(sx,sy);
-                    c.lineTo(ex,ey);
-                    c.strokeStyle='rgba(255,255,255,0.55)';
-                    c.lineWidth=0.6;
-                    c.stroke();
-                    
-                    // የላባ ጫፍ ነጥብ
-                    c.beginPath();
-                    c.arc(ex,ey,0.7,0,Math.PI*2);
-                    c.fillStyle='rgba(255,255,255,0.75)';
-                    c.fill();
-                }
-                
-                // መሃል ዘር
-                c.beginPath();
-                c.arc(0,0,this.s*0.5,0,Math.PI*2);
-                c.fillStyle='#fef9f0';
-                c.fill();
-                c.strokeStyle='rgba(200,180,150,0.4)';
-                c.lineWidth=0.4;
-                c.stroke();
-                
-                c.restore();
-            }
-        }
-        
-        function initFl(){
-            fluffs=[];
-            for(let i=0;i<(isMobile?40:60);i++)fluffs.push(new Fl());
-        }
-        
-        function drawFl(){
-            flC.clearRect(0,0,W(),H());
-            for(let f of fluffs){f.up();f.dr(flC)}
-        }
+            // 2. በምስሉ ላይ እንደሚታየው የልብ ድንበር ቅንጣጣቶች
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff0066';
+            ctx.strokeStyle = 'rgba(255, 0, 102, 0.8)';
+            ctx.lineWidth = 3;
+            drawHeartPath(ctx, cx, cy, heartSize);
+            ctx.stroke();
 
-        // ========== ሪሳይዝ ==========
-        function resize(){
-            ['bg','cam','lens','fluff'].forEach(id=>{
-                const c=document.getElementById(id);
-                c.width=W();c.height=H();
+            // 3. የሚንሳፈፉ ቅንጣጣቶች (የምስሉን ዘይቤ ለመከተል)
+            particles.forEach(p => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 215, 0, ${Math.abs(Math.sin(time * 0.001 + p.life))})`;
+                ctx.fill();
+                if(p.x > w || p.x < 0) p.speedX *= -1;
+                if(p.y > h || p.y < 0) p.speedY *= -1;
             });
-            initBg();initFl();
-        }
-        window.addEventListener('resize',resize);
 
-        // ========== አኒሜሽን ==========
-        function anim(ts){
-            globalTime=ts*0.001;
-            calcHeart(ts);
-            drawBg();
-            drawCam(ts);
-            drawLens();
-            drawFl();
-            requestAnimationFrame(anim);
+            requestAnimationFrame(animate);
         }
 
-        resize();requestAnimationFrame(anim);
+        window.addEventListener('resize', resize);
+        resize();
+        initCam();
+        requestAnimationFrame(animate);
     </script>
 </body>
 </html>

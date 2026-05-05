@@ -29,11 +29,11 @@
             50%{transform:translate(-50%,-50%) translateY(-6px)}
         }
         #t1{
-            font-size:clamp(22px,5vw,34px);font-weight:900;color:#fff;
+            font-size:clamp(20px,5vw,32px);font-weight:900;color:#fff;
             text-shadow:0 0 30px #f06,0 0 60px #f03;
         }
         #t2{
-            font-family:'Dancing Script',cursive;font-size:clamp(16px,4vw,22px);
+            font-family:'Dancing Script',cursive;font-size:clamp(14px,3.5vw,20px);
             color:#fd0;text-shadow:0 0 20px #fa0;
         }
     </style>
@@ -58,7 +58,6 @@
         const W=()=>window.innerWidth;
         const H=()=>window.innerHeight;
         let camOn=false;
-        let hx=0,hy=0,hs=0;
 
         const vid=document.getElementById('vid');
         const bgC=document.getElementById('bg').getContext('2d');
@@ -66,7 +65,7 @@
         const lensC=document.getElementById('lens').getContext('2d');
         const flC=document.getElementById('fluff').getContext('2d');
 
-        // ========== ካሜራ - ቀላል እንደ ብቻውን ኮዱ ==========
+        // ========== ካሜራ ==========
         (async function startCam(){
             try{
                 const stream=await navigator.mediaDevices.getUserMedia({
@@ -77,7 +76,7 @@
             }catch(e){camOn=false}
         })();
 
-        // ========== ዳራ ከዋክብት ==========
+        // ========== ዳራ ==========
         let stars=[],nebs=[];
         class Star{
             constructor(){this.rst(true)}
@@ -171,47 +170,84 @@
         });
         hg.add(new THREE.Points(mg,mm));
 
-        // ========== ልብ ቦታ ማስላት ==========
-        function calcHeartPos(){
-            const v=new THREE.Vector3(0,-0.3,0);
-            v.applyMatrix4(hg.matrixWorld);v.project(cam3);
-            hx=(v.x*0.5+0.5)*W();
-            hy=(-v.y*0.5+0.5)*H();
-            const bs=Math.min(W(),H())*0.7;
-            hs=bs*(1+Math.sin(Date.now()*0.0015)*0.03);
+        // ========== የልብ ቅርጽ ወሰኖች በስክሪን ላይ ማስላት ==========
+        function getHeartScreenBounds(){
+            // የልቡን ቅርጽ በ3D ነጥቦች ወደ ስክሪን መቀየር
+            const pts=[];
+            const steps=80;
+            for(let i=0;i<steps;i++){
+                const t=(i/steps)*Math.PI*2;
+                const p=heq(t);
+                const v=new THREE.Vector3(p.x,p.y,p.z);
+                v.applyMatrix4(hg.matrixWorld);
+                v.project(cam3);
+                pts.push({
+                    x:(v.x*0.5+0.5)*W(),
+                    y:(-v.y*0.5+0.5)*H()
+                });
+            }
+            
+            // ድንበር ሳጥን ፈልግ
+            let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+            for(const p of pts){
+                if(p.x<mnX)mnX=p.x;
+                if(p.y<mnY)mnY=p.y;
+                if(p.x>mxX)mxX=p.x;
+                if(p.y>mxY)mxY=p.y;
+            }
+            
+            const bw=mxX-mnX;
+            const bh=mxY-mnY;
+            const rawSize=Math.max(bw,bh)*1.08;
+            
+            // ከስክሪን ውጪ እንዳይሆን መገደብ
+            const maxAllowed=Math.min(W(),H())*0.85;
+            const size=Math.min(rawSize,maxAllowed);
+            
+            // ማዕከልም ከስክሪን ውጪ እንዳይሆን
+            const cx=(mnX+mxX)/2;
+            const cy=(mnY+mxY)/2;
+            const half=size/2;
+            const clampedX=Math.max(half,Math.min(W()-half,cx));
+            const clampedY=Math.max(half,Math.min(H()-half,cy));
+            
+            return {x:clampedX,y:clampedY,size:size};
         }
 
         // ========== ካሜራ በልብ ቅርጽ መሳል ==========
-        function drawCamInHeart(){
+        function drawCamInHeart(bounds){
             camC.clearRect(0,0,W(),H());
             if(!camOn || vid.readyState<2) return;
             
+            const {x:cx,y:cy,size}=bounds;
+            const s=size/30;
+            
             camC.save();
             // የልብ ቅርጽ ክሊፕ
-            const s=hs/30;
             camC.beginPath();
-            camC.moveTo(hx,hy-s*5);
-            camC.bezierCurveTo(hx-s*12,hy-s*12,hx-s*18,hy+s*2,hx,hy+s*14);
-            camC.bezierCurveTo(hx+s*18,hy+s*2,hx+s*12,hy-s*12,hx,hy-s*5);
+            camC.moveTo(cx,cy-s*5);
+            camC.bezierCurveTo(cx-s*12,cy-s*12,cx-s*18,cy+s*2,cx,cy+s*14);
+            camC.bezierCurveTo(cx+s*18,cy+s*2,cx+s*12,cy-s*12,cx,cy-s*5);
             camC.closePath();
             camC.clip();
             
-            // ካሜራ ቪዲዮ መሳል
+            // ካሜራ ቪዲዮ መሳል - ሙሉውን የልብ ቦታ ይሞላል
             camC.save();
             camC.scale(-1,1);
-            const vs=hs*1.5;
-            camC.drawImage(vid,-(hx+vs/2),hy-vs/2,vs,vs);
+            const vs=size*1.55;
+            camC.drawImage(vid,-(cx+vs/2),cy-vs/2,vs,vs);
             camC.restore();
             camC.restore();
         }
 
         // ========== ሌንስ ውጤት ==========
-        function drawLens(){
+        function drawLens(bounds){
             lensC.clearRect(0,0,W(),H());
-            if(hs<=0)return;
+            const {x:cx,y:cy,size}=bounds;
+            if(size<=0)return;
             
             // Vignette
-            const g=lensC.createRadialGradient(hx,hy,hs*0.35,hx,hy,hs*0.6);
+            const g=lensC.createRadialGradient(cx,cy,size*0.35,cx,cy,size*0.6);
             g.addColorStop(0,'rgba(0,0,0,0)');
             g.addColorStop(0.5,'rgba(0,0,0,0.06)');
             g.addColorStop(0.8,'rgba(0,0,0,0.3)');
@@ -219,14 +255,14 @@
             lensC.fillStyle=g;lensC.fillRect(0,0,W(),H());
             
             // ብርሃን ነጸብራቅ
-            const hl=lensC.createRadialGradient(hx-hs*0.12,hy-hs*0.18,hs*0.02,hx,hy,hs*0.45);
+            const hl=lensC.createRadialGradient(cx-size*0.12,cy-size*0.18,size*0.02,cx,cy,size*0.45);
             hl.addColorStop(0,'rgba(255,255,255,0.2)');
             hl.addColorStop(0.3,'rgba(255,255,255,0.05)');
             hl.addColorStop(1,'rgba(0,0,0,0)');
             lensC.fillStyle=hl;lensC.fillRect(0,0,W(),H());
             
             // ጠርዝ
-            lensC.beginPath();lensC.arc(hx,hy,hs*0.48,0,Math.PI*2);
+            lensC.beginPath();lensC.arc(cx,cy,size*0.48,0,Math.PI*2);
             lensC.strokeStyle='rgba(255,255,255,0.12)';lensC.lineWidth=1.5;
             lensC.shadowColor='rgba(255,255,255,0.2)';lensC.shadowBlur=10;
             lensC.stroke();
@@ -288,9 +324,10 @@
 
             drawBg();
             rdr.render(scn,cam3);
-            calcHeartPos();
-            drawCamInHeart();
-            drawLens();
+            
+            const bounds=getHeartScreenBounds();
+            drawCamInHeart(bounds);
+            drawLens(bounds);
             
             flC.clearRect(0,0,W(),H());
             for(let f of fluffs){f.up();f.dr(flC)}

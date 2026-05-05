@@ -47,6 +47,7 @@
             }catch(e){camOn=false}
         })();
 
+        // ===== ጋላክሲ =====
         let stars=[],nebs=[];
         class Star{
             constructor(){this.rst(true)}
@@ -62,7 +63,7 @@
         function initBg(){stars=[];for(let i=0;i<(isMobile?130:220);i++)stars.push(new Star());nebs=[];for(let i=0;i<(isMobile?3:6);i++)nebs.push(new Nebula())}
         function drawBg(){bgC.clearRect(0,0,W(),H());const g=bgC.createRadialGradient(W()/2,H()/2,0,W()/2,H()/2,Math.max(W(),H())*0.8);g.addColorStop(0,'rgba(30,5,60,0.45)');g.addColorStop(0.3,'rgba(15,2,30,0.55)');g.addColorStop(0.6,'rgba(5,0,15,0.8)');g.addColorStop(1,'#000003');bgC.fillStyle=g;bgC.fillRect(0,0,W(),H());for(let n of nebs){n.up();n.dr(bgC)}for(let s of stars){s.up();s.dr(bgC)}}
 
-        // ===== 3D ልብ =====
+        // ===== 3D ልብ በተለያየ የቀለም ክልል =====
         const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('three'),alpha:true,antialias:true});
         renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(W(),H());
         const scene=new THREE.Scene();
@@ -71,22 +72,50 @@
 
         function heq(t){return{x:16*Math.pow(Math.sin(t),3)*0.35,y:(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*0.35,z:3*Math.sin(t)*Math.cos(t)*0.35}}
 
-        // የ3D ልብ መስመሮች - **400 ነጥቦች በአንድ መስመር** (ቀድሞ 200 ነበር)
-        const totalLines=100,ptsPerLine=400;
+        // የቀለም ክልሎች - ከቀይ ወደ ወርቃማ እስከ ነጭ
+        const colorZones=[
+            {hue:0.95,sat:1,lit:0.7,op:0.9},   // ደማቅ ቀይ
+            {hue:0.0,sat:1,lit:0.65,op:0.8},   // ቀይ
+            {hue:0.05,sat:0.9,lit:0.6,op:0.7}, // ብርቱካን-ቀይ
+            {hue:0.08,sat:0.8,lit:0.55,op:0.6},// ወርቃማ-ቀይ
+            {hue:0.12,sat:0.7,lit:0.7,op:0.5}, // ወርቃማ
+            {hue:0.15,sat:0.6,lit:0.8,op:0.4}, // ቢጫ-ወርቃማ
+        ];
+
+        const totalLines=120,ptsPerLine=500;
         for(let line=0;line<totalLines;line++){
-            const offset=(line/totalLines-0.5)*2.5;
+            const zoneIndex=Math.floor((line/totalLines)*colorZones.length);
+            const zone=colorZones[Math.min(zoneIndex,colorZones.length-1)];
+            const offset=(line/totalLines-0.5)*2.8;
             const lGeo=new THREE.BufferGeometry();const verts=[];
-            for(let i=0;i<ptsPerLine;i++){const t=(i/(ptsPerLine-1))*Math.PI*2;const pt=heq(t);verts.push(pt.x+offset*0.08,pt.y,pt.z+offset*0.15)}
+            for(let i=0;i<ptsPerLine;i++){
+                const t=(i/(ptsPerLine-1))*Math.PI*2;
+                const pt=heq(t);
+                verts.push(pt.x+offset*0.07,pt.y,pt.z+offset*0.18);
+            }
             lGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
-            const lMat=new THREE.LineBasicMaterial({color:new THREE.Color().setHSL(0.94+Math.random()*0.1,1,0.5+Math.random()*0.4),transparent:true,opacity:0.3+Math.random()*0.5,blending:THREE.AdditiveBlending,depthWrite:false});
+            const color=new THREE.Color().setHSL(zone.hue,zone.sat,zone.lit);
+            const lMat=new THREE.LineBasicMaterial({
+                color:color,
+                transparent:true,
+                opacity:zone.op*(0.4+Math.random()*0.6),
+                blending:THREE.AdditiveBlending,
+                depthWrite:false
+            });
             heartGroup.add(new THREE.Line(lGeo,lMat));
         }
 
-        // የላይኛው መስመር - **600 ነጥቦች** (ቀድሞ 300 ነበር)
+        // የላይኛው አንጸባራቂ ድንበር
         const outlinePts=600,oGeo=new THREE.BufferGeometry(),oVerts=[];
         for(let i=0;i<outlinePts;i++){const t=(i/(outlinePts-1))*Math.PI*2;const pt=heq(t);oVerts.push(pt.x,pt.y,pt.z)}
         oGeo.setAttribute('position',new THREE.Float32BufferAttribute(oVerts,3));
-        heartGroup.add(new THREE.Line(oGeo,new THREE.LineBasicMaterial({color:0xff3366,transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false})));
+        heartGroup.add(new THREE.Line(oGeo,new THREE.LineBasicMaterial({color:0xff4477,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+        // የውጭ አንጸባራቂ
+        const outerPts=600,outerGeo=new THREE.BufferGeometry(),outerVerts=[];
+        for(let i=0;i<outerPts;i++){const t=(i/(outerPts-1))*Math.PI*2;const pt=heq(t);const sf=1.22;outerVerts.push(pt.x*sf,pt.y*sf,pt.z*sf)}
+        outerGeo.setAttribute('position',new THREE.Float32BufferAttribute(outerVerts,3));
+        heartGroup.add(new THREE.Line(outerGeo,new THREE.LineBasicMaterial({color:0xff6699,transparent:true,opacity:0.35,blending:THREE.AdditiveBlending,depthWrite:false})));
 
         function getHeart2D(){
             const pts=[];
